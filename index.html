@@ -215,10 +215,25 @@
 
     const CACHE_KEY = 'student_incident_records_v1';
 
+    // function saveRecordsToCache() {
+    //   try {localStorage.setItem(CACHE_KEY, JSON.stringify(records));}
+    //   catch (e) {console.warn('save cache error', e);}
+    // }
     function saveRecordsToCache() {
-      try {localStorage.setItem(CACHE_KEY, JSON.stringify(records));}
-      catch (e) {console.warn('save cache error', e);}
+      try {
+        // clone แล้วตัด base64 ทิ้ง ใช้เฉพาะ url
+        const slim = records.map(r => ({
+          ...r,
+          images: (r.images || [])
+            .map(img => img.url ? {url: img.url, name: img.name || ''} : null)
+            .filter(Boolean)
+        }));
+        localStorage.setItem(CACHE_KEY, JSON.stringify(slim));
+      } catch (e) {
+        console.warn('save cache error', e);
+      }
     }
+
     function loadRecordsFromCache() {
       try {
         const raw = localStorage.getItem(CACHE_KEY);
@@ -276,31 +291,57 @@
     // ===== Form submit =====
     document.getElementById('recordForm').addEventListener('submit', async (e) => {
       e.preventDefault();
-      const formData = {
-        date: new Date().toISOString().split('T')[0],
-        studentId: studentId.value,
-        studentName: studentName.value,
-        className: className.value,
-        incidentType: incidentType.value,
-        description: description.value,
-        severity: severity.value,
-        images: [...uploadedImages], // base64 (หรือ url ถ้ามี)
-        recorder: recorder.value
-      };
+      const formData = { /* ...เหมือนเดิม... */};
 
-      if (currentEditIndex >= 0) {records[currentEditIndex] = formData; alert('แก้ไขรายการเรียบร้อย!');}
-      else {records.push(formData); alert('เพิ่มรายการใหม่เรียบร้อย!');}
+      if (currentEditIndex >= 0) {
+        records[currentEditIndex] = formData;
+        alert('แก้ไขรายการเรียบร้อย!');
+      } else {
+        records.push(formData);
+        alert('เพิ่มรายการใหม่เรียบร้อย!');
+      }
 
+      // แสดงผลและเซฟ cache ชั่วคราว (จะยังเป็น base64)
       commitAndRender();
 
       if (isGoogleSheetsConnected) {
-        await syncToGoogleSheets(formData);
-        // ดึงกลับจากชีตเพื่อให้รายการล่าสุดมีลิงก์รูปจริง (จาก Drive)
+        // ส่ง index ไปด้วย เพื่ออัปเดตรูปเป็น URL กลับมาทับ
+        const idx = currentEditIndex >= 0 ? currentEditIndex : (records.length - 1);
+        await syncToGoogleSheets(formData, idx);
+        // ดึงกลับจากชีตเพื่อให้แน่ใจว่ารายการล่าสุดมีลิงก์ URL ครบ
         await fetchFromGoogleSheets();
       }
 
       closeModal();
     });
+
+    // document.getElementById('recordForm').addEventListener('submit', async (e) => {
+    //   e.preventDefault();
+    //   const formData = {
+    //     date: new Date().toISOString().split('T')[0],
+    //     studentId: studentId.value,
+    //     studentName: studentName.value,
+    //     className: className.value,
+    //     incidentType: incidentType.value,
+    //     description: description.value,
+    //     severity: severity.value,
+    //     images: [...uploadedImages], // base64 (หรือ url ถ้ามี)
+    //     recorder: recorder.value
+    //   };
+
+    //   if (currentEditIndex >= 0) {records[currentEditIndex] = formData; alert('แก้ไขรายการเรียบร้อย!');}
+    //   else {records.push(formData); alert('เพิ่มรายการใหม่เรียบร้อย!');}
+
+    //   commitAndRender();
+
+    //   if (isGoogleSheetsConnected) {
+    //     await syncToGoogleSheets(formData);
+    //     // ดึงกลับจากชีตเพื่อให้รายการล่าสุดมีลิงก์รูปจริง (จาก Drive)
+    //     await fetchFromGoogleSheets();
+    //   }
+
+    //   closeModal();
+    // });
 
     // ===== Image upload =====
     function handleImageUpload(ev) {
@@ -452,8 +493,9 @@
       if (!data.ok) return alert('สร้างหัวตารางไม่สำเร็จ');
       alert('สร้างหัวตารางเรียบร้อย');
     }
-    async function syncToGoogleSheets(record) {
+    async function syncToGoogleSheets(record, indexToUpdate = null) {
       if (!isGoogleSheetsConnected) return;
+
       const payload = {
         action: 'append',
         record: {
@@ -464,17 +506,63 @@
           incidentType: record.incidentType,
           description: record.description,
           severity: record.severity,
-          images: record.images, // [{name,dataURL}] หรือ [{url}]
+          images: record.images, // [{name,dataURL}] (จะถูกอัปขึ้น Drive)
           imagesCount: record.images?.length || 0,
           recorder: record.recorder,
           loggedAt: new Date().toISOString().split('T')[0]
         }
       };
       const body = 'payload=' + encodeURIComponent(JSON.stringify(payload));
-      const resp = await fetch(WEB_APP_URL, {method: 'POST', headers: {'Content-Type': 'application/x-www-form-urlencoded'}, body});
+      const resp = await fetch(WEB_APP_URL, {
+        method: 'POST',
+        headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+        body
+      });
       const data = await resp.json();
-      if (!data.ok) alert('บันทึกลงชีตไม่สำเร็จ');
+      if (!data.ok) {
+        alert('บันทึกลงชีตไม่สำเร็จ');
+        return;
+      }
+
+      // ถ้าเซิร์ฟเวอร์ตอบกลับ url ของภาพมา ให้แทนรูปใน records เป็น url
+      if (Array.isArray(data.images) && data.images.length) {
+        const urls = data.images.map(it => ({url: it.viewUrl, name: it.name || ''}));
+        if (indexToUpdate != null && records[indexToUpdate]) {
+          records[indexToUpdate].images = urls;
+        } else {
+          // เผื่อกรณีเพิ่ง push ไป ให้แทนตัวท้ายสุด
+          const last = records.length - 1;
+          if (last >= 0) records[last].images = urls;
+        }
+      }
+
+      // เซฟ cache อีกครั้ง (ตอนนี้เป็น url แล้ว) และรีเฟรชจอ
+      commitAndRender();
     }
+
+    // async function syncToGoogleSheets(record) {
+    //   if (!isGoogleSheetsConnected) return;
+    //   const payload = {
+    //     action: 'append',
+    //     record: {
+    //       date: record.date,
+    //       studentId: record.studentId,
+    //       studentName: record.studentName,
+    //       className: record.className,
+    //       incidentType: record.incidentType,
+    //       description: record.description,
+    //       severity: record.severity,
+    //       images: record.images, // [{name,dataURL}] หรือ [{url}]
+    //       imagesCount: record.images?.length || 0,
+    //       recorder: record.recorder,
+    //       loggedAt: new Date().toISOString().split('T')[0]
+    //     }
+    //   };
+    //   const body = 'payload=' + encodeURIComponent(JSON.stringify(payload));
+    //   const resp = await fetch(WEB_APP_URL, {method: 'POST', headers: {'Content-Type': 'application/x-www-form-urlencoded'}, body});
+    //   const data = await resp.json();
+    //   if (!data.ok) alert('บันทึกลงชีตไม่สำเร็จ');
+    // }
     async function syncAllDataToGoogleSheets() {
       if (!isGoogleSheetsConnected) return alert('กรุณาเชื่อมต่อก่อน');
       if (records.length === 0) return alert('ไม่มีข้อมูลที่จะส่ง');
