@@ -72,6 +72,9 @@
                accept=".xlsx,.xls"
                class="hidden"
                onchange="handleExcelImport(event)">
+        <button id="printBtn"
+                class="px-4 py-2 rounded-lg bg-slate-700 hover:bg-slate-800 text-white font-semibold"
+                onclick="window.print()">🖨️ พิมพ์รายงาน</button>
       </div>
 
       <!-- Table -->
@@ -200,20 +203,45 @@
   </div>
 
   <script>
-    /** ===== CONFIG ===== */
-    const SPREADSHEET_ID = '1Lc5F9JDq8X_ZxJxcd2D_eY_v25vtVdLVxS0pOKvC6nU'; // ของคุณเดิม
+    /** ===== CONFIG (แก้ 2 จุดนี้) ===== */
+    const SPREADSHEET_ID = 'Sheet1';       // << Spreadsheet ID
     const WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbyaRR3dN_obgdXFG2so-aqH1ki2wnefXoxVDqXqnYDWBwnigVkZAEaLCd5a8kJCmisBXA/exec';
-    /** ================== */
+    /** ================================= */
 
     let records = [];
     let currentEditIndex = -1;
-    let uploadedImages = []; // [{name, dataURL}]
+    let uploadedImages = []; // [{name, dataURL}] หรือ [{url}]
     let isGoogleSheetsConnected = false;
 
-    document.addEventListener('DOMContentLoaded', () => {
-      loadSampleData();
+    const CACHE_KEY = 'student_incident_records_v1';
+
+    function saveRecordsToCache() {
+      try {localStorage.setItem(CACHE_KEY, JSON.stringify(records));}
+      catch (e) {console.warn('save cache error', e);}
+    }
+    function loadRecordsFromCache() {
+      try {
+        const raw = localStorage.getItem(CACHE_KEY);
+        if (!raw) return false;
+        const data = JSON.parse(raw);
+        if (Array.isArray(data)) {records = data; return true;}
+      } catch (e) {console.warn('load cache error', e);}
+      return false;
+    }
+    function commitAndRender() {
+      saveRecordsToCache();
       updateStatistics();
       displayRecords();
+    }
+
+    document.addEventListener('DOMContentLoaded', async () => {
+      // 1) โหลดจาก cache ให้ขึ้นทันที
+      const hadCache = loadRecordsFromCache();
+      if (!hadCache) loadSampleData();
+      commitAndRender();
+
+      // 2) ลองดึงจากชีตมาทับ
+      await fetchFromGoogleSheets();
     });
 
     function loadSampleData() {
@@ -223,20 +251,14 @@
       ];
     }
 
+    // ===== Modal =====
     function openModal(index = -1) {
       currentEditIndex = index;
       document.getElementById('recordModal').classList.remove('hidden');
       document.getElementById('recordModal').classList.add('flex');
-      const title = document.getElementById('modalTitle');
-      if (index >= 0) {
-        title.textContent = 'แก้ไขรายการ';
-        fillFormData(records[index]);
-      } else {
-        title.textContent = 'เพิ่มรายการใหม่';
-        document.getElementById('recordForm').reset();
-        uploadedImages = [];
-        displayUploadedImages();
-      }
+      document.getElementById('modalTitle').textContent = index >= 0 ? 'แก้ไขรายการ' : 'เพิ่มรายการใหม่';
+      if (index >= 0) fillFormData(records[index]);
+      else {document.getElementById('recordForm').reset(); uploadedImages = []; displayUploadedImages();}
     }
     function closeModal() {
       document.getElementById('recordModal').classList.add('hidden');
@@ -245,18 +267,13 @@
       displayUploadedImages();
     }
     function fillFormData(r) {
-      studentId.value = r.studentId;
-      studentName.value = r.studentName;
-      className.value = r.className;
-      incidentType.value = r.incidentType;
-      description.value = r.description;
-      severity.value = r.severity;
-      recorder.value = r.recorder;
+      studentId.value = r.studentId; studentName.value = r.studentName; className.value = r.className;
+      incidentType.value = r.incidentType; description.value = r.description; severity.value = r.severity; recorder.value = r.recorder;
       uploadedImages = [...r.images];
       displayUploadedImages();
     }
 
-    // submit
+    // ===== Form submit =====
     document.getElementById('recordForm').addEventListener('submit', async (e) => {
       e.preventDefault();
       const formData = {
@@ -267,21 +284,25 @@
         incidentType: incidentType.value,
         description: description.value,
         severity: severity.value,
-        images: [...uploadedImages], // ส่ง base64 ไป Apps Script
+        images: [...uploadedImages], // base64 (หรือ url ถ้ามี)
         recorder: recorder.value
       };
 
       if (currentEditIndex >= 0) {records[currentEditIndex] = formData; alert('แก้ไขรายการเรียบร้อย!');}
       else {records.push(formData); alert('เพิ่มรายการใหม่เรียบร้อย!');}
 
-      if (isGoogleSheetsConnected) {await syncToGoogleSheets(formData);}
+      commitAndRender();
 
-      updateStatistics();
-      displayRecords();
+      if (isGoogleSheetsConnected) {
+        await syncToGoogleSheets(formData);
+        // ดึงกลับจากชีตเพื่อให้รายการล่าสุดมีลิงก์รูปจริง (จาก Drive)
+        await fetchFromGoogleSheets();
+      }
+
       closeModal();
     });
 
-    // upload imgs
+    // ===== Image upload =====
     function handleImageUpload(ev) {
       const files = Array.from(ev.target.files || []);
       if (uploadedImages.length + files.length > 5) {alert('อัปโหลดได้สูงสุด 5 รูป'); return;}
@@ -298,10 +319,11 @@
       const c = document.getElementById('uploadedImages');
       c.innerHTML = '';
       uploadedImages.forEach((img, idx) => {
+        const src = img.dataURL || img.url;
         const wrap = document.createElement('div');
         wrap.className = 'relative';
         wrap.innerHTML = `
-      <img src="${img.dataURL}" class="w-16 h-16 rounded-lg object-cover border">
+      <img src="${src}" class="w-16 h-16 rounded-lg object-cover border">
       <button class="absolute -top-2 -right-2 w-6 h-6 rounded-full bg-rose-500 text-white text-sm" onclick="removeImage(${idx})">✕</button>
     `;
         c.appendChild(wrap);
@@ -309,7 +331,7 @@
     }
     function removeImage(i) {uploadedImages.splice(i, 1); displayUploadedImages();}
 
-    // table
+    // ===== Table & actions =====
     function displayRecords() {
       const tbody = document.getElementById('recordsTable');
       tbody.innerHTML = '';
@@ -317,6 +339,10 @@
         const sevClass = r.severity === 'สูง' ? 'text-rose-600 font-semibold'
           : r.severity === 'กลาง' ? 'text-amber-600 font-semibold'
             : 'text-emerald-600 font-semibold';
+        const imgSrc = r.images.length ? (r.images[0].dataURL || r.images[0].url) : null;
+        const imgHTML = r.images.length
+          ? `<img src="${imgSrc}" class="w-14 h-14 rounded object-cover inline-block align-middle"> ${r.images.length > 1 ? `(+${r.images.length - 1})` : ''}`
+          : 'ไม่มี';
         const tr = document.createElement('tr');
         tr.className = 'hover:bg-indigo-50';
         tr.innerHTML = `
@@ -327,9 +353,7 @@
       <td class="py-3 px-4">${r.incidentType}</td>
       <td class="py-3 px-4">${r.description}</td>
       <td class="py-3 px-4"><span class="${sevClass}">${r.severity}</span></td>
-      <td class="py-3 px-4">
-        ${r.images.length ? `<img src="${r.images[0].dataURL}" class="w-14 h-14 rounded object-cover inline-block align-middle"> ${r.images.length > 1 ? `(+${r.images.length - 1})` : ''}` : 'ไม่มี'}
-      </td>
+      <td class="py-3 px-4">${imgHTML}</td>
       <td class="py-3 px-4">${r.recorder}</td>
       <td class="py-3 px-4">
         <div class="flex gap-2">
@@ -344,9 +368,8 @@
     function deleteRecord(i) {
       if (confirm('ลบรายการนี้หรือไม่?')) {
         records.splice(i, 1);
-        updateStatistics();
-        displayRecords();
-        alert('ลบรายการเรียบร้อย!');
+        commitAndRender();
+        if (isGoogleSheetsConnected) fetchFromGoogleSheets();
       }
     }
     function searchRecords() {
@@ -363,7 +386,7 @@
       lowSeverityCount.textContent = records.filter(r => r.severity === 'ต่ำ').length;
     }
 
-    // excel
+    // ===== Excel =====
     function exportToExcel() {
       const ws = XLSX.utils.json_to_sheet(records.map(r => ({
         'วันที่': r.date, 'รหัสนักเรียน': r.studentId, 'ชื่อ-นามสกุล': r.studentName, 'ชั้น': r.className,
@@ -395,14 +418,12 @@
             recorder: row['ผู้บันทึก'] || ''
           });
         });
-        updateStatistics();
-        displayRecords();
-        alert(`นำเข้าข้อมูล ${json.length} รายการแล้ว`);
+        commitAndRender();
       };
       reader.readAsArrayBuffer(f);
     }
 
-    // Google Sheets via Apps Script
+    // ===== Google Sheets (ผ่าน Apps Script Web App) =====
     async function connectGoogleSheets() {
       if (isGoogleSheetsConnected) {alert('เชื่อมต่ออยู่แล้ว'); return;}
       try {
@@ -443,7 +464,7 @@
           incidentType: record.incidentType,
           description: record.description,
           severity: record.severity,
-          images: record.images, // [{name,dataURL}]
+          images: record.images, // [{name,dataURL}] หรือ [{url}]
           imagesCount: record.images?.length || 0,
           recorder: record.recorder,
           loggedAt: new Date().toISOString().split('T')[0]
@@ -468,11 +489,96 @@
       const data = await resp.json();
       if (!data.ok) return alert('ส่งข้อมูลทั้งหมดไม่สำเร็จ');
       alert(`ส่งข้อมูล ${records.length} รายการเรียบร้อย`);
+      await fetchFromGoogleSheets(); // รีโหลดจากชีตเพื่อได้ลิงก์รูปจริง
     }
 
-    // keyboard / print (optional)
-    document.addEventListener('keydown', (e) => {if (e.ctrlKey && e.key === 'n') {e.preventDefault(); openModal();} if (e.key === 'Escape') {closeModal();} });
+    // ดึงข้อมูลจาก Google Sheets (อ่านอย่างเดียว)
+    async function fetchFromGoogleSheets() {
+      try {
+        const resp = await fetch(WEB_APP_URL, {method: 'GET'});
+        if (!resp.ok) throw new Error('fetch sheets failed');
+        const data = await resp.json();
+        if (!data.ok) throw new Error(data.message || 'sheets not ok');
+
+        const list = (data.data || []).map(row => {
+          const urls = (row['ลิงก์รูปภาพ'] || '')
+            .toString()
+            .split('\n')
+            .map(s => s.trim())
+            .filter(Boolean)
+            .map(u => ({url: u})); // ให้แสดงรูปจาก Drive ได้
+
+          return {
+            date: row['วันที่'] || '',
+            studentId: row['รหัสนักเรียน'] || '',
+            studentName: row['ชื่อ-นามสกุล'] || '',
+            className: row['ชั้น'] || '',
+            incidentType: row['ประเภทการกระทำผิด'] || '',
+            description: row['รายละเอียด'] || '',
+            severity: row['ความรุนแรง'] || 'ต่ำ',
+            images: urls,
+            recorder: row['ผู้บันทึก'] || ''
+          };
+        });
+
+        // ถ้ามีข้อมูลในชีต ทับ records และแคชไว้
+        if (list.length) {
+          records = list;
+          commitAndRender();
+          isGoogleSheetsConnected = true;
+          // อัปเดตกุญแจเชื่อมต่อในกล่อง
+          const box = document.getElementById('gsBox');
+          if (box) {
+            box.innerHTML = `
+          <h3 class="text-xl font-semibold">✅ เชื่อมต่อเรียบร้อย</h3>
+          <p>🔗 <a class="underline font-medium" href="https://docs.google.com/spreadsheets/d/${SPREADSHEET_ID}/edit" target="_blank">เปิด Google Sheets</a></p>
+          <div class="mt-3 flex items-center justify-center gap-2">
+            <button onclick="createSheetsHeaders()" class="px-4 py-2 rounded-lg bg-amber-500 hover:bg-amber-600 text-white">📋 สร้างหัวตาราง</button>
+            <button onclick="syncAllDataToGoogleSheets()" class="px-4 py-2 rounded-lg bg-emerald-500 hover:bg-emerald-600 text-white">📤 ส่งข้อมูลทั้งหมด</button>
+          </div>`;
+          }
+        }
+        return true;
+      } catch (e) {
+        console.warn('fetchFromGoogleSheets error', e);
+        return false;
+      }
+    }
+
+    // คีย์ลัด
+    document.addEventListener('keydown', (e) => {
+      if (e.ctrlKey && e.key === 'n') {e.preventDefault(); openModal();}
+      if (e.key === 'Escape') {closeModal();}
+    });
   </script>
+
+  <style>
+    @media print {
+      body * {
+        visibility: hidden
+      }
+
+      table,
+      table * {
+        visibility: visible
+      }
+
+      table {
+        position: absolute;
+        left: 0;
+        top: 0;
+        width: 100%
+      }
+
+      #printBtn,
+      #recordModal,
+      #gsBox,
+      .grid,
+      .flex {
+        display: none !important
+      }
+    }
+  </style>
 </body>
 
 </html>
