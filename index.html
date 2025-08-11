@@ -1,536 +1,198 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="th">
 
 <head>
-  <meta charset="UTF-8" />
+  <meta charset="utf-8">
   <meta name="viewport"
-        content="width=device-width, initial-scale=1.0" />
+        content="width=device-width,initial-scale=1" />
   <title>ระบบบันทึกการกระทำผิดของนักเรียน</title>
+  <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-  <style>
-    * {
-      margin: 0;
-      padding: 0;
-      box-sizing: border-box
-    }
-
-    body {
-      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-      min-height: 100vh;
-      padding: 20px
-    }
-
-    .container {
-      max-width: 1200px;
-      margin: 0 auto;
-      background: rgba(255, 255, 255, .95);
-      border-radius: 20px;
-      box-shadow: 0 20px 40px rgba(0, 0, 0, .1);
-      overflow: hidden
-    }
-
-    .header {
-      background: linear-gradient(135deg, #667eea, #764ba2);
-      color: #fff;
-      padding: 30px;
-      text-align: center
-    }
-
-    .header h1 {
-      font-size: 2.5em;
-      margin-bottom: 10px;
-      text-shadow: 0 2px 4px rgba(0, 0, 0, .3)
-    }
-
-    .header p {
-      font-size: 1.2em;
-      opacity: .9
-    }
-
-    .main-content {
-      padding: 30px
-    }
-
-    .controls {
-      display: flex;
-      gap: 15px;
-      margin-bottom: 30px;
-      flex-wrap: wrap;
-      align-items: center
-    }
-
-    .btn {
-      padding: 12px 24px;
-      border: none;
-      border-radius: 10px;
-      cursor: pointer;
-      font-size: 16px;
-      font-weight: 600;
-      transition: all .3s ease;
-      text-transform: uppercase;
-      letter-spacing: 1px
-    }
-
-    .btn-primary {
-      background: linear-gradient(135deg, #667eea, #764ba2);
-      color: #fff;
-      box-shadow: 0 4px 15px rgba(102, 126, 234, .4)
-    }
-
-    .btn-primary:hover {
-      transform: translateY(-2px);
-      box-shadow: 0 6px 20px rgba(102, 126, 234, .6)
-    }
-
-    .btn-success {
-      background: linear-gradient(135deg, #56ab2f, #a8e6cf);
-      color: #fff;
-      box-shadow: 0 4px 15px rgba(86, 171, 47, .4)
-    }
-
-    .btn-success:hover {
-      transform: translateY(-2px);
-      box-shadow: 0 6px 20px rgba(86, 171, 47, .6)
-    }
-
-    .btn-danger {
-      background: linear-gradient(135deg, #ff416c, #ff4b2b);
-      color: #fff;
-      box-shadow: 0 4px 15px rgba(255, 65, 108, .4)
-    }
-
-    .btn-danger:hover {
-      transform: translateY(-2px);
-      box-shadow: 0 6px 20px rgba(255, 65, 108, .6)
-    }
-
-    .btn-warning {
-      background: linear-gradient(135deg, #f7971e, #ffd200);
-      color: #fff;
-      box-shadow: 0 4px 15px rgba(247, 151, 30, .4)
-    }
-
-    .btn-warning:hover {
-      transform: translateY(-2px);
-      box-shadow: 0 6px 20px rgba(247, 151, 30, .6)
-    }
-
-    .modal {
-      display: none;
-      position: fixed;
-      z-index: 1000;
-      left: 0;
-      top: 0;
-      width: 100%;
-      height: 100%;
-      background-color: rgba(0, 0, 0, .7);
-      backdrop-filter: blur(5px)
-    }
-
-    .modal-content {
-      background: #fff;
-      margin: 5% auto;
-      padding: 30px;
-      border-radius: 20px;
-      width: 90%;
-      max-width: 600px;
-      box-shadow: 0 20px 60px rgba(0, 0, 0, .3);
-      animation: modalFadeIn .3s ease
-    }
-
-    @keyframes modalFadeIn {
-      from {
-        opacity: 0;
-        transform: translateY(-50px)
-      }
-
-      to {
-        opacity: 1;
-        transform: translateY(0)
-      }
-    }
-
-    .close {
-      color: #aaa;
-      float: right;
-      font-size: 28px;
-      font-weight: bold;
-      cursor: pointer;
-      transition: color .3s ease
-    }
-
-    .close:hover {
-      color: #ff416c
-    }
-
-    .form-group {
-      margin-bottom: 20px
-    }
-
-    .form-group label {
-      display: block;
-      margin-bottom: 8px;
-      font-weight: 600;
-      color: #333
-    }
-
-    .form-group input,
-    .form-group select,
-    .form-group textarea {
-      width: 100%;
-      padding: 12px;
-      border: 2px solid #e0e0e0;
-      border-radius: 10px;
-      font-size: 16px;
-      transition: all .3s ease
-    }
-
-    .form-group input:focus,
-    .form-group select:focus,
-    .form-group textarea:focus {
-      border-color: #667eea;
-      outline: none;
-      box-shadow: 0 0 0 3px rgba(102, 126, 234, .1)
-    }
-
-    .table-container {
-      background: #fff;
-      border-radius: 15px;
-      overflow: hidden;
-      box-shadow: 0 10px 30px rgba(0, 0, 0, .1)
-    }
-
-    .table {
-      width: 100%;
-      border-collapse: collapse
-    }
-
-    .table th {
-      background: linear-gradient(135deg, #667eea, #764ba2);
-      color: #fff;
-      padding: 15px;
-      text-align: left;
-      font-weight: 600;
-      text-transform: uppercase;
-      letter-spacing: 1px
-    }
-
-    .table td {
-      padding: 15px;
-      border-bottom: 1px solid #e0e0e0;
-      transition: background-color .3s ease
-    }
-
-    .table tbody tr:hover {
-      background: #f8f9ff
-    }
-
-    .table tbody tr:nth-child(even) {
-      background: #fafafa
-    }
-
-    .action-buttons {
-      display: flex;
-      gap: 8px
-    }
-
-    .btn-sm {
-      padding: 6px 12px;
-      font-size: 14px;
-      border-radius: 6px
-    }
-
-    .image-preview {
-      max-width: 100px;
-      max-height: 100px;
-      border-radius: 8px;
-      cursor: pointer;
-      transition: transform .3s ease
-    }
-
-    .image-preview:hover {
-      transform: scale(1.1)
-    }
-
-    .search-box {
-      padding: 12px;
-      border: 2px solid #e0e0e0;
-      border-radius: 10px;
-      font-size: 16px;
-      width: 300px;
-      transition: all .3s ease
-    }
-
-    .search-box:focus {
-      border-color: #667eea;
-      outline: none;
-      box-shadow: 0 0 0 3px rgba(102, 126, 234, .1)
-    }
-
-    .stats {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-      gap: 20px;
-      margin-bottom: 30px
-    }
-
-    .stat-card {
-      background: linear-gradient(135deg, #667eea, #764ba2);
-      color: #fff;
-      padding: 20px;
-      border-radius: 15px;
-      text-align: center;
-      box-shadow: 0 10px 30px rgba(102, 126, 234, .3)
-    }
-
-    .stat-number {
-      font-size: 2.5em;
-      font-weight: bold;
-      margin-bottom: 5px
-    }
-
-    .stat-label {
-      font-size: 1em;
-      opacity: .9
-    }
-
-    .google-sheets-info {
-      background: linear-gradient(135deg, #4285f4, #34a853);
-      color: #fff;
-      padding: 20px;
-      border-radius: 15px;
-      margin-bottom: 30px;
-      text-align: center
-    }
-
-    .severity-high {
-      color: #ff416c;
-      font-weight: bold
-    }
-
-    .severity-medium {
-      color: #f7971e;
-      font-weight: bold
-    }
-
-    .severity-low {
-      color: #56ab2f;
-      font-weight: bold
-    }
-
-    .image-upload-area {
-      border: 2px dashed #667eea;
-      border-radius: 10px;
-      padding: 20px;
-      text-align: center;
-      cursor: pointer;
-      transition: all .3s ease
-    }
-
-    .image-upload-area:hover {
-      background: #f8f9ff;
-      border-color: #764ba2
-    }
-
-    .uploaded-images {
-      display: flex;
-      gap: 10px;
-      flex-wrap: wrap;
-      margin-top: 10px
-    }
-
-    .image-item {
-      position: relative;
-      display: inline-block
-    }
-
-    .remove-image {
-      position: absolute;
-      top: -8px;
-      right: -8px;
-      background: #ff416c;
-      color: #fff;
-      border: none;
-      border-radius: 50%;
-      width: 24px;
-      height: 24px;
-      cursor: pointer;
-      font-size: 12px
-    }
-
-    @media print {
-      body * {
-        visibility: hidden
-      }
-
-      .table-container,
-      .table-container * {
-        visibility: visible
-      }
-
-      .table-container {
-        position: absolute;
-        left: 0;
-        top: 0;
-        width: 100%
-      }
-
-      .btn,
-      .controls,
-      .modal {
-        display: none !important
-      }
-    }
-  </style>
 </head>
 
-<body>
-  <div class="container">
-    <div class="header">
-      <h1>📚 ระบบบันทึกการกระทำผิดของนักเรียน</h1>
-      <p>จัดการและติดตามพฤติกรรมของนักเรียนอย่างเป็นระบบ</p>
+<body class="min-h-screen bg-gradient-to-br from-indigo-400 to-purple-500 p-6">
+  <div class="mx-auto max-w-6xl bg-white/95 rounded-2xl shadow-2xl overflow-hidden">
+    <!-- Header -->
+    <div class="bg-gradient-to-r from-indigo-500 to-purple-500 text-white p-8 text-center">
+      <h1 class="text-3xl font-bold drop-shadow">📚 ระบบบันทึกการกระทำผิดของนักเรียน</h1>
+      <p class="opacity-90 mt-2">จัดการและติดตามพฤติกรรมของนักเรียนอย่างเป็นระบบ</p>
     </div>
 
-    <div class="main-content">
-      <div class="google-sheets-info">
-        <h3>🔗 การเชื่อมต่อกับ Google Sheets</h3>
-        <p>ระบบนี้จะบันทึกข้อมูลลงใน Google Sheets โดยอัตโนมัติ</p>
-        <button class="btn btn-primary"
-                onclick="connectGoogleSheets()">เชื่อมต่อ Google Sheets</button>
+    <div class="p-6 md:p-8 space-y-6">
+      <!-- Google Sheets info -->
+      <div id="gsBox"
+           class="rounded-xl p-5 text-white text-center bg-gradient-to-r from-blue-500 to-green-500">
+        <h3 class="text-xl font-semibold">🔗 การเชื่อมต่อกับ Google Sheets</h3>
+        <p class="mt-1">ระบบนี้จะบันทึกข้อมูลลงใน Google Sheets และเก็บรูปใน Google Drive</p>
+        <button onclick="connectGoogleSheets()"
+                class="mt-3 inline-flex items-center gap-2 px-5 py-2 rounded-lg bg-black/20 hover:bg-black/30 transition">
+          เชื่อมต่อ Google Sheets
+        </button>
       </div>
 
-      <div class="stats">
-        <div class="stat-card">
-          <div class="stat-number"
-               id="totalIncidents">0</div>
-          <div class="stat-label">รายการทั้งหมด</div>
+      <!-- Stats -->
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div class="rounded-xl p-5 text-white bg-gradient-to-r from-indigo-500 to-purple-500 shadow">
+          <div id="totalIncidents"
+               class="text-3xl font-bold">0</div>
+          <div class="opacity-90">รายการทั้งหมด</div>
         </div>
-        <div class="stat-card">
-          <div class="stat-number"
-               id="highSeverityCount">0</div>
-          <div class="stat-label">ความรุนแรงสูง</div>
+        <div class="rounded-xl p-5 text-white bg-gradient-to-r from-rose-500 to-pink-500 shadow">
+          <div id="highSeverityCount"
+               class="text-3xl font-bold">0</div>
+          <div class="opacity-90">ความรุนแรงสูง</div>
         </div>
-        <div class="stat-card">
-          <div class="stat-number"
-               id="mediumSeverityCount">0</div>
-          <div class="stat-label">ความรุนแรงกลาง</div>
+        <div class="rounded-xl p-5 text-white bg-gradient-to-r from-amber-500 to-yellow-400 shadow">
+          <div id="mediumSeverityCount"
+               class="text-3xl font-bold">0</div>
+          <div class="opacity-90">ความรุนแรงกลาง</div>
         </div>
-        <div class="stat-card">
-          <div class="stat-number"
-               id="lowSeverityCount">0</div>
-          <div class="stat-label">ความรุนแรงต่ำ</div>
+        <div class="rounded-xl p-5 text-white bg-gradient-to-r from-emerald-500 to-lime-500 shadow">
+          <div id="lowSeverityCount"
+               class="text-3xl font-bold">0</div>
+          <div class="opacity-90">ความรุนแรงต่ำ</div>
         </div>
       </div>
 
-      <div class="controls">
-        <button class="btn btn-success"
+      <!-- Controls -->
+      <div class="flex flex-wrap items-center gap-3">
+        <button class="px-4 py-2 rounded-lg bg-emerald-500 hover:bg-emerald-600 text-white font-semibold"
                 onclick="openModal()">➕ เพิ่มรายการใหม่</button>
-        <button class="btn btn-primary"
+        <button class="px-4 py-2 rounded-lg bg-indigo-500 hover:bg-indigo-600 text-white font-semibold"
                 onclick="exportToExcel()">📊 ส่งออกเป็น Excel</button>
-        <button class="btn btn-warning"
+        <button class="px-4 py-2 rounded-lg bg-amber-500 hover:bg-amber-600 text-white font-semibold"
                 onclick="importFromExcel()">📥 นำเข้าจาก Excel</button>
-        <input type="text"
-               class="search-box"
-               id="searchInput"
+        <input id="searchInput"
+               type="text"
                placeholder="🔍 ค้นหา..."
-               onkeyup="searchRecords()">
-        <input type="file"
-               id="excelImport"
+               onkeyup="searchRecords()"
+               class="flex-1 min-w-[220px] px-4 py-2 rounded-lg border-2 border-gray-200 focus:border-indigo-400 focus:ring-0" />
+        <input id="excelImport"
+               type="file"
                accept=".xlsx,.xls"
-               style="display:none"
+               class="hidden"
                onchange="handleExcelImport(event)">
       </div>
 
-      <div class="table-container">
-        <table class="table">
-          <thead>
+      <!-- Table -->
+      <div class="overflow-x-auto bg-white rounded-xl shadow">
+        <table class="w-full text-left">
+          <thead class="bg-gradient-to-r from-indigo-500 to-purple-500 text-white">
             <tr>
-              <th>วันที่</th>
-              <th>รหัสนักเรียน</th>
-              <th>ชื่อ-นามสกุล</th>
-              <th>ชั้น</th>
-              <th>ประเภทการกระทำผิด</th>
-              <th>รายละเอียด</th>
-              <th>ความรุนแรง</th>
-              <th>รูปภาพ</th>
-              <th>ผู้บันทึก</th>
-              <th>การดำเนินการ</th>
+              <th class="py-3 px-4">วันที่</th>
+              <th class="py-3 px-4">รหัสนักเรียน</th>
+              <th class="py-3 px-4">ชื่อ-นามสกุล</th>
+              <th class="py-3 px-4">ชั้น</th>
+              <th class="py-3 px-4">ประเภทการกระทำผิด</th>
+              <th class="py-3 px-4">รายละเอียด</th>
+              <th class="py-3 px-4">ความรุนแรง</th>
+              <th class="py-3 px-4">รูปภาพ</th>
+              <th class="py-3 px-4">ผู้บันทึก</th>
+              <th class="py-3 px-4">การดำเนินการ</th>
             </tr>
           </thead>
-          <tbody id="recordsTable"></tbody>
+          <tbody id="recordsTable"
+                 class="divide-y"></tbody>
         </table>
       </div>
     </div>
   </div>
 
+  <!-- Modal -->
   <div id="recordModal"
-       class="modal">
-    <div class="modal-content">
-      <span class="close"
-            onclick="closeModal()">&times;</span>
-      <h2 id="modalTitle">เพิ่มรายการใหม่</h2>
-      <form id="recordForm">
-        <div class="form-group"><label for="studentId">รหัสนักเรียน:</label><input type="text"
-                 id="studentId"
-                 required></div>
-        <div class="form-group"><label for="studentName">ชื่อ-นามสกุล:</label><input type="text"
-                 id="studentName"
-                 required></div>
-        <div class="form-group"><label for="className">ชั้น:</label><input type="text"
-                 id="className"
-                 required></div>
-        <div class="form-group">
-          <label for="incidentType">ประเภทการกระทำผิด:</label>
-          <select id="incidentType"
-                  required>
-            <option value="">เลือกประเภท</option>
-            <option value="มาสาย">มาสาย</option>
-            <option value="ไม่ทำการบ้าน">ไม่ทำการบ้าน</option>
-            <option value="ไม่สวมเครื่องแบบ">ไม่สวมเครื่องแบบ</option>
-            <option value="ทะเลาะวิวาท">ทะเลาะวิวาท</option>
-            <option value="สูบบุหรี่">สูบบุหรี่</option>
-            <option value="พกอาวุธ">พกอาวุธ</option>
-            <option value="ทำลายทรัพย์สิน">ทำลายทรัพย์สิน</option>
-            <option value="อื่นๆ">อื่นๆ</option>
-          </select>
-        </div>
-        <div class="form-group"><label for="description">รายละเอียด:</label><textarea id="description"
-                    rows="3"
-                    required></textarea></div>
-        <div class="form-group">
-          <label for="severity">ความรุนแรง:</label>
-          <select id="severity"
-                  required>
-            <option value="">เลือกความรุนแรง</option>
-            <option value="ต่ำ">ต่ำ</option>
-            <option value="กลาง">กลาง</option>
-            <option value="สูง">สูง</option>
-          </select>
-        </div>
-        <div class="form-group"><label for="recorder">ผู้บันทึก:</label><input type="text"
-                 id="recorder"
-                 required></div>
-        <div class="form-group">
-          <label>รูปภาพประกอบ:</label>
-          <div class="image-upload-area"
-               onclick="document.getElementById('imageInput').click()">
-            <p>📷 คลิกเพื่อเลือกรูปภาพ (สูงสุด 5 รูป)</p>
-            <input type="file"
-                   id="imageInput"
-                   multiple
-                   accept="image/*"
-                   style="display:none"
-                   onchange="handleImageUpload(event)">
+       class="fixed inset-0 bg-black/60 hidden items-center justify-center p-4">
+    <div class="bg-white rounded-2xl w-full max-w-xl p-6 relative">
+      <button class="absolute top-3 right-3 text-gray-400 hover:text-rose-500"
+              onclick="closeModal()">✕</button>
+      <h2 id="modalTitle"
+          class="text-xl font-semibold mb-4">เพิ่มรายการใหม่</h2>
+
+      <form id="recordForm"
+            class="space-y-4">
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <label class="font-medium">รหัสนักเรียน</label>
+            <input id="studentId"
+                   required
+                   class="w-full mt-1 px-3 py-2 rounded-lg border-2 border-gray-200 focus:border-indigo-400 focus:ring-0" />
           </div>
-          <div class="uploaded-images"
-               id="uploadedImages"></div>
+          <div>
+            <label class="font-medium">ชื่อ-นามสกุล</label>
+            <input id="studentName"
+                   required
+                   class="w-full mt-1 px-3 py-2 rounded-lg border-2 border-gray-200 focus:border-indigo-400 focus:ring-0" />
+          </div>
+          <div>
+            <label class="font-medium">ชั้น</label>
+            <input id="className"
+                   required
+                   class="w-full mt-1 px-3 py-2 rounded-lg border-2 border-gray-200 focus:border-indigo-400 focus:ring-0" />
+          </div>
+          <div>
+            <label class="font-medium">ประเภทการกระทำผิด</label>
+            <select id="incidentType"
+                    required
+                    class="w-full mt-1 px-3 py-2 rounded-lg border-2 border-gray-200 focus:border-indigo-400 focus:ring-0">
+              <option value="">เลือกประเภท</option>
+              <option>มาสาย</option>
+              <option>ไม่ทำการบ้าน</option>
+              <option>ไม่สวมเครื่องแบบ</option>
+              <option>ทะเลาะวิวาท</option>
+              <option>สูบบุหรี่</option>
+              <option>พกอาวุธ</option>
+              <option>ทำลายทรัพย์สิน</option>
+              <option>อื่นๆ</option>
+            </select>
+          </div>
         </div>
-        <div class="controls">
+
+        <div>
+          <label class="font-medium">รายละเอียด</label>
+          <textarea id="description"
+                    rows="3"
+                    required
+                    class="w-full mt-1 px-3 py-2 rounded-lg border-2 border-gray-200 focus:border-indigo-400 focus:ring-0"></textarea>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <label class="font-medium">ความรุนแรง</label>
+            <select id="severity"
+                    required
+                    class="w-full mt-1 px-3 py-2 rounded-lg border-2 border-gray-200 focus:border-indigo-400 focus:ring-0">
+              <option value="">เลือกความรุนแรง</option>
+              <option>ต่ำ</option>
+              <option>กลาง</option>
+              <option>สูง</option>
+            </select>
+          </div>
+          <div>
+            <label class="font-medium">ผู้บันทึก</label>
+            <input id="recorder"
+                   required
+                   class="w-full mt-1 px-3 py-2 rounded-lg border-2 border-gray-200 focus:border-indigo-400 focus:ring-0" />
+          </div>
+        </div>
+
+        <div>
+          <label class="font-medium">รูปภาพประกอบ (สูงสุด 5 รูป)</label>
+          <div class="mt-2 rounded-xl border-2 border-dashed border-indigo-300 p-4 text-center cursor-pointer hover:bg-indigo-50"
+               onclick="document.getElementById('imageInput').click()">📷 คลิกเพื่อเลือกรูปภาพ</div>
+          <input id="imageInput"
+                 type="file"
+                 accept="image/*"
+                 multiple
+                 class="hidden"
+                 onchange="handleImageUpload(event)">
+          <div id="uploadedImages"
+               class="mt-3 flex flex-wrap gap-2"></div>
+        </div>
+
+        <div class="flex items-center gap-3 pt-2">
           <button type="submit"
-                  class="btn btn-success">💾 บันทึก</button>
+                  class="px-4 py-2 rounded-lg bg-emerald-500 hover:bg-emerald-600 text-white font-semibold">💾 บันทึก</button>
           <button type="button"
-                  class="btn btn-danger"
+                  class="px-4 py-2 rounded-lg bg-rose-500 hover:bg-rose-600 text-white font-semibold"
                   onclick="closeModal()">❌ ยกเลิก</button>
         </div>
       </form>
@@ -538,202 +200,189 @@
   </div>
 
   <script>
-    /** ========= CONFIG ========= */
+    /** ===== CONFIG ===== */
     const SPREADSHEET_ID = '1Lc5F9JDq8X_ZxJxcd2D_eY_v25vtVdLVxS0pOKvC6nU'; // ของคุณเดิม
     const WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbyaRR3dN_obgdXFG2so-aqH1ki2wnefXoxVDqXqnYDWBwnigVkZAEaLCd5a8kJCmisBXA/exec';
-    /** ========================= */
+    /** ================== */
 
     let records = [];
     let currentEditIndex = -1;
-    let uploadedImages = [];
+    let uploadedImages = []; // [{name, dataURL}]
     let isGoogleSheetsConnected = false;
 
-    // Init
     document.addEventListener('DOMContentLoaded', () => {
       loadSampleData();
       updateStatistics();
       displayRecords();
-      addTooltips();
-      addAdditionalControls();
     });
 
     function loadSampleData() {
       records = [
         {date: '2025-01-15', studentId: 'ST001', studentName: 'สมชาย ใจดี', className: 'ม.4/1', incidentType: 'มาสาย', description: 'มาสาย 15 นาที ไม่มีใบลา', severity: 'ต่ำ', images: [], recorder: 'อาจารย์สมหญิง'},
-        {date: '2025-01-14', studentId: 'ST002', studentName: 'สมหญิง รักเรียน', className: 'ม.5/2', incidentType: 'ไม่ทำการบ้าน', description: 'ไม่ส่งการบ้านคณิตศาสตร์ 3 ครั้งติดต่อกัน', severity: 'กลาง', images: [], recorder: 'อาจารย์วิชัย'}
+        {date: '2025-01-14', studentId: 'ST002', studentName: 'สมหญิง รักเรียน', className: 'ม.5/2', incidentType: 'ไม่ทำการบ้าน', description: 'ไม่ส่งการบ้านคณิตศาสตร์ 3 ครั้ง', severity: 'กลาง', images: [], recorder: 'อาจารย์วิชัย'}
       ];
     }
 
-    // ===== Modal =====
     function openModal(index = -1) {
       currentEditIndex = index;
-      const modal = document.getElementById('recordModal');
-      const modalTitle = document.getElementById('modalTitle');
+      document.getElementById('recordModal').classList.remove('hidden');
+      document.getElementById('recordModal').classList.add('flex');
+      const title = document.getElementById('modalTitle');
       if (index >= 0) {
-        modalTitle.textContent = 'แก้ไขรายการ';
+        title.textContent = 'แก้ไขรายการ';
         fillFormData(records[index]);
       } else {
-        modalTitle.textContent = 'เพิ่มรายการใหม่';
+        title.textContent = 'เพิ่มรายการใหม่';
         document.getElementById('recordForm').reset();
         uploadedImages = [];
         displayUploadedImages();
       }
-      modal.style.display = 'block';
     }
     function closeModal() {
-      document.getElementById('recordModal').style.display = 'none';
+      document.getElementById('recordModal').classList.add('hidden');
+      document.getElementById('recordModal').classList.remove('flex');
       uploadedImages = [];
       displayUploadedImages();
     }
-    function fillFormData(record) {
-      document.getElementById('studentId').value = record.studentId;
-      document.getElementById('studentName').value = record.studentName;
-      document.getElementById('className').value = record.className;
-      document.getElementById('incidentType').value = record.incidentType;
-      document.getElementById('description').value = record.description;
-      document.getElementById('severity').value = record.severity;
-      document.getElementById('recorder').value = record.recorder;
-      uploadedImages = [...record.images];
+    function fillFormData(r) {
+      studentId.value = r.studentId;
+      studentName.value = r.studentName;
+      className.value = r.className;
+      incidentType.value = r.incidentType;
+      description.value = r.description;
+      severity.value = r.severity;
+      recorder.value = r.recorder;
+      uploadedImages = [...r.images];
       displayUploadedImages();
     }
 
-    // ===== Form submit =====
+    // submit
     document.getElementById('recordForm').addEventListener('submit', async (e) => {
       e.preventDefault();
       const formData = {
         date: new Date().toISOString().split('T')[0],
-        studentId: document.getElementById('studentId').value,
-        studentName: document.getElementById('studentName').value,
-        className: document.getElementById('className').value,
-        incidentType: document.getElementById('incidentType').value,
-        description: document.getElementById('description').value,
-        severity: document.getElementById('severity').value,
-        images: [...uploadedImages],
-        recorder: document.getElementById('recorder').value
+        studentId: studentId.value,
+        studentName: studentName.value,
+        className: className.value,
+        incidentType: incidentType.value,
+        description: description.value,
+        severity: severity.value,
+        images: [...uploadedImages], // ส่ง base64 ไป Apps Script
+        recorder: recorder.value
       };
 
-      if (currentEditIndex >= 0) {
-        records[currentEditIndex] = formData;
-        alert('แก้ไขรายการเรียบร้อย!');
-      } else {
-        records.push(formData);
-        alert('เพิ่มรายการใหม่เรียบร้อย!');
-      }
+      if (currentEditIndex >= 0) {records[currentEditIndex] = formData; alert('แก้ไขรายการเรียบร้อย!');}
+      else {records.push(formData); alert('เพิ่มรายการใหม่เรียบร้อย!');}
 
-      if (isGoogleSheetsConnected) {
-        await syncToGoogleSheets(formData);
-      }
+      if (isGoogleSheetsConnected) {await syncToGoogleSheets(formData);}
 
       updateStatistics();
       displayRecords();
       closeModal();
     });
 
-    // ===== Image upload =====
-    function handleImageUpload(event) {
-      const files = Array.from(event.target.files);
-      if (uploadedImages.length + files.length > 5) {
-        alert('สามารถอัพโหลดรูปภาพได้สูงสุด 5 รูปเท่านั้น');
-        return;
-      }
+    // upload imgs
+    function handleImageUpload(ev) {
+      const files = Array.from(ev.target.files || []);
+      if (uploadedImages.length + files.length > 5) {alert('อัปโหลดได้สูงสุด 5 รูป'); return;}
       files.forEach(file => {
         const reader = new FileReader();
-        reader.onload = (e) => {
-          uploadedImages.push({name: file.name, data: e.target.result});
+        reader.onload = e => {
+          uploadedImages.push({name: file.name, dataURL: e.target.result});
           displayUploadedImages();
         };
         reader.readAsDataURL(file);
       });
     }
     function displayUploadedImages() {
-      const container = document.getElementById('uploadedImages');
-      container.innerHTML = '';
-      uploadedImages.forEach((image, index) => {
-        const div = document.createElement('div');
-        div.className = 'image-item';
-        div.innerHTML = `
-      <img src="${image.data}" alt="${image.name}" class="image-preview" style="width:60px;height:60px;object-fit:cover;">
-      <button type="button" class="remove-image" onclick="removeImage(${index})">×</button>
+      const c = document.getElementById('uploadedImages');
+      c.innerHTML = '';
+      uploadedImages.forEach((img, idx) => {
+        const wrap = document.createElement('div');
+        wrap.className = 'relative';
+        wrap.innerHTML = `
+      <img src="${img.dataURL}" class="w-16 h-16 rounded-lg object-cover border">
+      <button class="absolute -top-2 -right-2 w-6 h-6 rounded-full bg-rose-500 text-white text-sm" onclick="removeImage(${idx})">✕</button>
     `;
-        container.appendChild(div);
+        c.appendChild(wrap);
       });
     }
-    function removeImage(index) {
-      uploadedImages.splice(index, 1);
-      displayUploadedImages();
-    }
+    function removeImage(i) {uploadedImages.splice(i, 1); displayUploadedImages();}
 
-    // ===== Table & actions =====
+    // table
     function displayRecords() {
       const tbody = document.getElementById('recordsTable');
       tbody.innerHTML = '';
-      records.forEach((record, index) => {
-        const row = document.createElement('tr');
-        const sevClass = record.severity === 'สูง' ? 'high' : (record.severity === 'กลาง' ? 'medium' : 'low');
-        row.innerHTML = `
-      <td>${record.date}</td>
-      <td>${record.studentId}</td>
-      <td>${record.studentName}</td>
-      <td>${record.className}</td>
-      <td>${record.incidentType}</td>
-      <td>${record.description}</td>
-      <td><span class="severity-${sevClass}">${record.severity}</span></td>
-      <td>${record.images.length > 0 ? `<img src="${record.images[0].data}" alt="รูปภาพ" class="image-preview" onclick="showImageModal('${record.images[0].data}')">${record.images.length > 1 ? ` (+${record.images.length - 1})` : ''}` : 'ไม่มี'}</td>
-      <td>${record.recorder}</td>
-      <td>
-        <div class="action-buttons">
-          <button class="btn btn-warning btn-sm" onclick="openModal(${index})">✏️ แก้ไข</button>
-          <button class="btn btn-danger btn-sm" onclick="deleteRecord(${index})">🗑️ ลบ</button>
+      records.forEach((r, idx) => {
+        const sevClass = r.severity === 'สูง' ? 'text-rose-600 font-semibold'
+          : r.severity === 'กลาง' ? 'text-amber-600 font-semibold'
+            : 'text-emerald-600 font-semibold';
+        const tr = document.createElement('tr');
+        tr.className = 'hover:bg-indigo-50';
+        tr.innerHTML = `
+      <td class="py-3 px-4">${r.date}</td>
+      <td class="py-3 px-4">${r.studentId}</td>
+      <td class="py-3 px-4">${r.studentName}</td>
+      <td class="py-3 px-4">${r.className}</td>
+      <td class="py-3 px-4">${r.incidentType}</td>
+      <td class="py-3 px-4">${r.description}</td>
+      <td class="py-3 px-4"><span class="${sevClass}">${r.severity}</span></td>
+      <td class="py-3 px-4">
+        ${r.images.length ? `<img src="${r.images[0].dataURL}" class="w-14 h-14 rounded object-cover inline-block align-middle"> ${r.images.length > 1 ? `(+${r.images.length - 1})` : ''}` : 'ไม่มี'}
+      </td>
+      <td class="py-3 px-4">${r.recorder}</td>
+      <td class="py-3 px-4">
+        <div class="flex gap-2">
+          <button class="px-3 py-1 rounded bg-amber-500 hover:bg-amber-600 text-white" onclick="openModal(${idx})">แก้ไข</button>
+          <button class="px-3 py-1 rounded bg-rose-500 hover:bg-rose-600 text-white" onclick="deleteRecord(${idx})">ลบ</button>
         </div>
       </td>
     `;
-        tbody.appendChild(row);
+        tbody.appendChild(tr);
       });
     }
-    function deleteRecord(index) {
-      if (confirm('คุณต้องการลบรายการนี้ใช่หรือไม่?')) {
-        records.splice(index, 1);
+    function deleteRecord(i) {
+      if (confirm('ลบรายการนี้หรือไม่?')) {
+        records.splice(i, 1);
         updateStatistics();
         displayRecords();
         alert('ลบรายการเรียบร้อย!');
       }
     }
     function searchRecords() {
-      const q = document.getElementById('searchInput').value.toLowerCase();
-      const rows = document.getElementById('recordsTable').getElementsByTagName('tr');
+      const q = searchInput.value.toLowerCase();
+      const rows = recordsTable.getElementsByTagName('tr');
       Array.from(rows).forEach(row => {
-        const text = row.textContent.toLowerCase();
-        row.style.display = text.includes(q) ? '' : 'none';
+        row.style.display = row.textContent.toLowerCase().includes(q) ? '' : 'none';
       });
     }
     function updateStatistics() {
-      document.getElementById('totalIncidents').textContent = records.length;
-      document.getElementById('highSeverityCount').textContent = records.filter(r => r.severity === 'สูง').length;
-      document.getElementById('mediumSeverityCount').textContent = records.filter(r => r.severity === 'กลาง').length;
-      document.getElementById('lowSeverityCount').textContent = records.filter(r => r.severity === 'ต่ำ').length;
+      totalIncidents.textContent = records.length;
+      highSeverityCount.textContent = records.filter(r => r.severity === 'สูง').length;
+      mediumSeverityCount.textContent = records.filter(r => r.severity === 'กลาง').length;
+      lowSeverityCount.textContent = records.filter(r => r.severity === 'ต่ำ').length;
     }
 
-    // ===== Excel =====
+    // excel
     function exportToExcel() {
       const ws = XLSX.utils.json_to_sheet(records.map(r => ({
         'วันที่': r.date, 'รหัสนักเรียน': r.studentId, 'ชื่อ-นามสกุล': r.studentName, 'ชั้น': r.className,
         'ประเภทการกระทำผิด': r.incidentType, 'รายละเอียด': r.description, 'ความรุนแรง': r.severity,
         'จำนวนรูปภาพ': r.images.length, 'ผู้บันทึก': r.recorder
       })));
-      const wb = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(wb, ws, 'รายการกระทำผิด');
-      XLSX.writeFile(wb, `รายการกระทำผิดนักเรียน_${new Date().toISOString().split('T')[0]}.xlsx`);
+      const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, 'รายการกระทำผิด');
+      XLSX.writeFile(wb, `รายการกระทำผิด_${new Date().toISOString().split('T')[0]}.xlsx`);
     }
-    function importFromExcel() {document.getElementById('excelImport').click();}
-    function handleExcelImport(event) {
-      const file = event.target.files[0]; if (!file) return;
+    function importFromExcel() {excelImport.click();}
+    function handleExcelImport(e) {
+      const f = e.target.files[0]; if (!f) return;
       const reader = new FileReader();
-      reader.onload = (e) => {
-        const data = new Uint8Array(e.target.result);
-        const workbook = XLSX.read(data, {type: 'array'});
-        const worksheet = workbook.Sheets[workbook.SheetNames[0]];
-        const jsonData = XLSX.utils.sheet_to_json(worksheet);
-        jsonData.forEach(row => {
+      reader.onload = ev => {
+        const data = new Uint8Array(ev.target.result);
+        const wb = XLSX.read(data, {type: 'array'});
+        const ws = wb.Sheets[wb.SheetNames[0]];
+        const json = XLSX.utils.sheet_to_json(ws);
+        json.forEach(row => {
           records.push({
             date: row['วันที่'] || new Date().toISOString().split('T')[0],
             studentId: row['รหัสนักเรียน'] || '',
@@ -748,161 +397,81 @@
         });
         updateStatistics();
         displayRecords();
-        alert(`นำเข้าข้อมูล ${jsonData.length} รายการเรียบร้อย!`);
+        alert(`นำเข้าข้อมูล ${json.length} รายการแล้ว`);
       };
-      reader.readAsArrayBuffer(file);
+      reader.readAsArrayBuffer(f);
     }
 
-    // ===== Google Sheets (ผ่าน Apps Script Web App) =====
+    // Google Sheets via Apps Script
     async function connectGoogleSheets() {
-      if (isGoogleSheetsConnected) {alert('เชื่อมต่อกับ Google Sheets อยู่แล้ว'); return;}
+      if (isGoogleSheetsConnected) {alert('เชื่อมต่ออยู่แล้ว'); return;}
       try {
-        document.querySelector('.google-sheets-info').innerHTML = `
-      <h3>🔄 กำลังเชื่อมต่อ Google Sheets...</h3><p>กรุณารอสักครู่</p>`;
+        gsBox.innerHTML = `<h3 class="text-xl font-semibold">🔄 กำลังเชื่อมต่อ...</h3><p>กรุณารอสักครู่</p>`;
         const resp = await fetch(WEB_APP_URL, {method: 'GET'});
         if (!resp.ok) throw new Error('Cannot reach Web App');
-
         isGoogleSheetsConnected = true;
-        document.querySelector('.google-sheets-info').innerHTML = `
-      <h3>✅ เชื่อมต่อ Google Sheets เรียบร้อย</h3>
-      <p>🔗 <a href="https://docs.google.com/spreadsheets/d/${SPREADSHEET_ID}/edit" target="_blank">เปิด Google Sheets</a></p>
-      <p>ข้อมูลจะถูกซิงค์โดยอัตโนมัติ</p>
-      <div style="margin-top: 15px;">
-        <button class="btn btn-success" onclick="syncAllDataToGoogleSheets()" style="margin-right:10px;">📤 ส่งข้อมูลทั้งหมด</button>
-        <button class="btn btn-warning" onclick="createSheetsHeaders()" style="margin-right:10px;">📋 สร้างหัวตาราง</button>
-        <button class="btn btn-danger" onclick="disconnectGoogleSheets()">ตัดการเชื่อมต่อ</button>
+        gsBox.innerHTML = `
+      <h3 class="text-xl font-semibold">✅ เชื่อมต่อเรียบร้อย</h3>
+      <p>🔗 <a class="underline font-medium" href="https://docs.google.com/spreadsheets/d/${SPREADSHEET_ID}/edit" target="_blank">เปิด Google Sheets</a></p>
+      <div class="mt-3 flex items-center justify-center gap-2">
+        <button onclick="createSheetsHeaders()" class="px-4 py-2 rounded-lg bg-amber-500 hover:bg-amber-600 text-white">📋 สร้างหัวตาราง</button>
+        <button onclick="syncAllDataToGoogleSheets()" class="px-4 py-2 rounded-lg bg-emerald-500 hover:bg-emerald-600 text-white">📤 ส่งข้อมูลทั้งหมด</button>
       </div>`;
-        alert('เชื่อมต่อ Google Sheets เรียบร้อย!');
+        alert('เชื่อมต่อ Google Sheets สำเร็จ');
       } catch (err) {
         console.error(err);
-        alert('เชื่อมต่อไม่สำเร็จ กรุณาตรวจสอบ Web App URL และสิทธิ์การเข้าถึง');
+        alert('เชื่อมต่อไม่สำเร็จ ตรวจสอบ Web App URL/สิทธิ์');
       }
-    }
-    function disconnectGoogleSheets() {
-      isGoogleSheetsConnected = false;
-      document.querySelector('.google-sheets-info').innerHTML = `
-    <h3>🔗 การเชื่อมต่อกับ Google Sheets</h3>
-    <p>ระบบจะบันทึกข้อมูลลงใน Google Sheets โดยอัตโนมัติ</p>
-    <p>📊 Target Sheet: <a href="https://docs.google.com/spreadsheets/d/${SPREADSHEET_ID}/edit" target="_blank">เปิด Google Sheets</a></p>
-    <button class="btn btn-primary" onclick="connectGoogleSheets()">เชื่อมต่อ Google Sheets</button>`;
-      alert('ตัดการเชื่อมต่อกับ Google Sheets เรียบร้อย');
     }
     async function createSheetsHeaders() {
-      if (!isGoogleSheetsConnected) {alert('กรุณาเชื่อมต่อ Google Sheets ก่อน'); return;}
-      try {
-        const body = 'payload=' + encodeURIComponent(JSON.stringify({action: 'createHeaders'}));
-        const resp = await fetch(WEB_APP_URL, {
-          method: 'POST',
-          headers: {'Content-Type': 'application/x-www-form-urlencoded'},
-          body
-        });
-        const data = await resp.json();
-        if (!data.ok) throw new Error(data.message || 'create headers failed');
-        alert('สร้างหัวตารางใน Google Sheets เรียบร้อย!');
-      } catch (err) {
-        console.error(err);
-        alert('สร้างหัวตารางไม่สำเร็จ');
-      }
+      if (!isGoogleSheetsConnected) return alert('กรุณาเชื่อมต่อก่อน');
+      const body = 'payload=' + encodeURIComponent(JSON.stringify({action: 'createHeaders'}));
+      const resp = await fetch(WEB_APP_URL, {method: 'POST', headers: {'Content-Type': 'application/x-www-form-urlencoded'}, body});
+      const data = await resp.json();
+      if (!data.ok) return alert('สร้างหัวตารางไม่สำเร็จ');
+      alert('สร้างหัวตารางเรียบร้อย');
     }
     async function syncToGoogleSheets(record) {
       if (!isGoogleSheetsConnected) return;
-      try {
-        const payload = {
-          action: 'append',
-          record: {
-            date: record.date,
-            studentId: record.studentId,
-            studentName: record.studentName,
-            className: record.className,
-            incidentType: record.incidentType,
-            description: record.description,
-            severity: record.severity,
-            imagesCount: Array.isArray(record.images) ? record.images.length : 0,
-            recorder: record.recorder,
-            loggedAt: new Date().toISOString().split('T')[0]
-          }
-        };
-        const body = 'payload=' + encodeURIComponent(JSON.stringify(payload));
-        const resp = await fetch(WEB_APP_URL, {
-          method: 'POST',
-          headers: {'Content-Type': 'application/x-www-form-urlencoded'},
-          body
-        });
-        const data = await resp.json();
-        if (!data.ok) throw new Error(data.message || 'append failed');
-        console.log('Synced 1 record to Google Sheets');
-      } catch (err) {
-        console.error('Sync 1 record error:', err);
-        alert('ส่งข้อมูลไป Google Sheets ไม่สำเร็จ');
-      }
+      const payload = {
+        action: 'append',
+        record: {
+          date: record.date,
+          studentId: record.studentId,
+          studentName: record.studentName,
+          className: record.className,
+          incidentType: record.incidentType,
+          description: record.description,
+          severity: record.severity,
+          images: record.images, // [{name,dataURL}]
+          imagesCount: record.images?.length || 0,
+          recorder: record.recorder,
+          loggedAt: new Date().toISOString().split('T')[0]
+        }
+      };
+      const body = 'payload=' + encodeURIComponent(JSON.stringify(payload));
+      const resp = await fetch(WEB_APP_URL, {method: 'POST', headers: {'Content-Type': 'application/x-www-form-urlencoded'}, body});
+      const data = await resp.json();
+      if (!data.ok) alert('บันทึกลงชีตไม่สำเร็จ');
     }
     async function syncAllDataToGoogleSheets() {
-      if (!isGoogleSheetsConnected) {alert('กรุณาเชื่อมต่อ Google Sheets ก่อน'); return;}
-      if (records.length === 0) {alert('ไม่มีข้อมูลที่จะส่ง'); return;}
-      try {
-        const list = records.map(r => ({
-          date: r.date, studentId: r.studentId, studentName: r.studentName, className: r.className,
-          incidentType: r.incidentType, description: r.description, severity: r.severity,
-          imagesCount: Array.isArray(r.images) ? r.images.length : 0, recorder: r.recorder,
-          loggedAt: new Date().toISOString().split('T')[0]
-        }));
-        const body = 'payload=' + encodeURIComponent(JSON.stringify({action: 'appendBulk', records: list}));
-        const resp = await fetch(WEB_APP_URL, {
-          method: 'POST',
-          headers: {'Content-Type': 'application/x-www-form-urlencoded'},
-          body
-        });
-        const data = await resp.json();
-        if (!data.ok) throw new Error(data.message || 'append bulk failed');
-        alert(`ส่งข้อมูล ${records.length} รายการไปยัง Google Sheets เรียบร้อย!`);
-      } catch (err) {
-        console.error(err);
-        alert('ส่งข้อมูลทั้งหมดไม่สำเร็จ');
-      }
+      if (!isGoogleSheetsConnected) return alert('กรุณาเชื่อมต่อก่อน');
+      if (records.length === 0) return alert('ไม่มีข้อมูลที่จะส่ง');
+      const list = records.map(r => ({
+        date: r.date, studentId: r.studentId, studentName: r.studentName, className: r.className,
+        incidentType: r.incidentType, description: r.description, severity: r.severity,
+        images: r.images, imagesCount: r.images?.length || 0, recorder: r.recorder,
+        loggedAt: new Date().toISOString().split('T')[0]
+      }));
+      const body = 'payload=' + encodeURIComponent(JSON.stringify({action: 'appendBulk', records: list}));
+      const resp = await fetch(WEB_APP_URL, {method: 'POST', headers: {'Content-Type': 'application/x-www-form-urlencoded'}, body});
+      const data = await resp.json();
+      if (!data.ok) return alert('ส่งข้อมูลทั้งหมดไม่สำเร็จ');
+      alert(`ส่งข้อมูล ${records.length} รายการเรียบร้อย`);
     }
 
-    // ===== Misc =====
-    function showImageModal(imageSrc) {
-      const modal = document.createElement('div');
-      modal.style.cssText = `position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.8);display:flex;justify-content:center;align-items:center;z-index:2000;cursor:pointer;`;
-      const img = document.createElement('img');
-      img.src = imageSrc;
-      img.style.cssText = `max-width:90%;max-height:90%;border-radius:10px;box-shadow:0 10px 30px rgba(0,0,0,.5);`;
-      modal.appendChild(img);
-      document.body.appendChild(modal);
-      modal.onclick = () => document.body.removeChild(modal);
-    }
-    window.onclick = function (e) {
-      const modal = document.getElementById('recordModal');
-      if (e.target === modal) {closeModal();}
-    };
-    document.addEventListener('keydown', function (e) {
-      if (e.ctrlKey && e.key === 'n') {e.preventDefault(); openModal();}
-      if (e.key === 'Escape') {closeModal();}
-    });
-    setInterval(function () {
-      if (isGoogleSheetsConnected && records.length > 0) {
-        console.log('Auto-sync heartbeat...');
-      }
-    }, 30000);
-    function printReport() {window.print();}
-    function addTooltips() {
-      const items = [
-        {selector: '.btn-success', text: 'เพิ่มรายการใหม่ (Ctrl+N)'},
-        {selector: '.btn-primary', text: 'ส่งออกข้อมูลเป็นไฟล์ Excel'},
-        {selector: '.btn-warning', text: 'นำเข้าข้อมูลจากไฟล์ Excel'},
-        {selector: '.search-box', text: 'ค้นหาข้อมูลในตาราง'}
-      ];
-      items.forEach(i => {const el = document.querySelector(i.selector); if (el) el.title = i.text;});
-    }
-    function addAdditionalControls() {
-      const controls = document.querySelector('.controls');
-      const btn = document.createElement('button');
-      btn.className = 'btn btn-primary';
-      btn.innerHTML = '🖨️ พิมพ์รายงาน';
-      btn.onclick = printReport;
-      controls.appendChild(btn);
-    }
+    // keyboard / print (optional)
+    document.addEventListener('keydown', (e) => {if (e.ctrlKey && e.key === 'n') {e.preventDefault(); openModal();} if (e.key === 'Escape') {closeModal();} });
   </script>
 </body>
 
